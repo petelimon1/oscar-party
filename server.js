@@ -18,10 +18,17 @@ let _mongoDb = null;
 async function getDb() {
   if (!process.env.MONGODB_URI) return null;
   if (_mongoDb) return _mongoDb;
-  const client = new MongoClient(process.env.MONGODB_URI);
-  await client.connect();
-  _mongoDb = client.db('oscar_party');
-  console.log('Connected to MongoDB');
+  try {
+    const client = new MongoClient(process.env.MONGODB_URI, {
+      serverSelectionTimeoutMS: 5000,
+      connectTimeoutMS: 5000,
+    });
+    await client.connect();
+    _mongoDb = client.db('oscar_party');
+    console.log('Connected to MongoDB');
+  } catch (e) {
+    console.error('MongoDB connection failed, falling back to file storage:', e.message);
+  }
   return _mongoDb;
 }
 
