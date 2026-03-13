@@ -10,7 +10,7 @@
 
 <header class="site-header">
   <h1>🏆 Oscar Pool 2026</h1>
-  <p class="subtitle">98th Academy Awards · March 2, 2025</p>
+  <p class="subtitle">98th Academy Awards · March 15, 2026</p>
   <nav>
     <a href="/" class="active">My Picks</a>
     <a href="/leaderboard.html">Leaderboard</a>
@@ -22,7 +22,17 @@
   <!-- Name selector -->
   <div id="name-section" class="card" style="margin-top:20px">
     <p class="section-title" style="margin-top:0">Who are you?</p>
-    <div id="name-grid" class="name-grid"></div>
+    <div id="name-input-row" style="display:flex;gap:8px;margin-bottom:12px">
+      <input type="text" id="name-input" placeholder="Enter your name…"
+             maxlength="50"
+             style="flex:1;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:16px"
+             onkeydown="if(event.key==='Enter')confirmName()">
+      <button class="btn btn-gold" onclick="confirmName()" style="white-space:nowrap">Go</button>
+    </div>
+    <div id="name-existing" style="display:none">
+      <p style="margin:0 0 8px;font-size:13px;color:var(--text-dim)">Already registered:</p>
+      <div id="name-grid" class="name-grid"></div>
+    </div>
   </div>
 
   <!-- Warning if no name selected -->
@@ -54,23 +64,45 @@ async function init() {
   const res = await fetch('/api/data');
   appData = await res.json();
   renderNames();
-  renderCategories();
-  updateSaveBar();
+  // Pre-fill input with stored name
+  if (selectedName) {
+    document.getElementById('name-input').value = selectedName;
+    selectName(selectedName);
+  } else {
+    renderCategories();
+    updateSaveBar();
+  }
 }
 
 /* ── Names ──────────────────────────────────────────────────────────────── */
 function renderNames() {
   const grid = document.getElementById('name-grid');
+  const existing = document.getElementById('name-existing');
+  if (appData.participantNames.length === 0) {
+    existing.style.display = 'none';
+    return;
+  }
+  existing.style.display = 'block';
   grid.innerHTML = appData.participantNames.map(name => `
     <button class="name-btn ${name === selectedName ? 'selected' : ''}"
-            onclick="selectName('${escHtml(name)}')">${escHtml(name)}</button>
+            onclick="quickSelect('${escHtml(name)}')">${escHtml(name)}</button>
   `).join('');
+}
+
+function quickSelect(name) {
+  document.getElementById('name-input').value = name;
+  selectName(name);
+}
+
+function confirmName() {
+  const val = document.getElementById('name-input').value.trim();
+  if (!val) { showToast('Please enter your name', 'error'); return; }
+  selectName(val);
 }
 
 function selectName(name) {
   selectedName = name;
   localStorage.setItem('oscarPicksName', name);
-  // Load saved picks for this person
   pendingPicks = { ...(appData.picks[name] || {}) };
   renderNames();
   renderCategories();
@@ -173,6 +205,10 @@ async function savePicks() {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || 'Save failed');
+    if (!appData.participantNames.includes(selectedName)) {
+      appData.participantNames.push(selectedName);
+      renderNames();
+    }
     appData.picks[selectedName] = { ...pendingPicks };
     showToast('Picks saved! 🏆', 'success');
   } catch (e) {
