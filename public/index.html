@@ -145,7 +145,7 @@ function renderCatCard(cat, myPicks) {
   if (noNoms) {
     body = `<div class="cat-body"><p style="color:var(--text-dim);font-size:13px;padding:8px 0">Nominees not yet entered – check back soon.</p></div>`;
   } else {
-    const items = cat.nominees.map(nom => {
+    const items = cat.nominees.map((nom, nomIdx) => {
       const checked = myPick === nom ? 'checked' : '';
       let itemClass = 'nominee-item';
       let tag = '';
@@ -159,7 +159,7 @@ function renderCatCard(cat, myPicks) {
         <li class="${itemClass}">
           <input type="radio" name="cat_${cat.id}" id="nom_${cat.id}_${slugify(nom)}"
                  value="${escHtml(nom)}" ${checked} ${disabled}
-                 onchange="onPickChange('${cat.id}', '${escHtml(nom)}')">
+                 onchange="onPickChangeByIdx('${cat.id}', ${nomIdx})">
           <label for="nom_${cat.id}_${slugify(nom)}">${escHtml(nom)}</label>
           ${tag}
         </li>`;
@@ -178,6 +178,11 @@ function renderCatCard(cat, myPicks) {
       </div>
       ${body}
     </div>`;
+}
+
+function onPickChangeByIdx(categoryId, nomIdx) {
+  const cat = appData.categories.find(c => c.id === categoryId);
+  onPickChange(categoryId, cat.nominees[nomIdx]);
 }
 
 function onPickChange(categoryId, nominee) {
