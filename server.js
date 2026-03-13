@@ -88,6 +88,7 @@ function defaultData() {
       { id: 'best_vfx',          name: 'Best Visual Effects',             points: 1, nominees: ['Avatar: Fire and Ash','F1','Jurassic World Rebirth','The Lost Bus','Sinners'], winner: null },
     ],
     picks: {},
+    lockedParticipants: [],
   };
 }
 
@@ -118,13 +119,25 @@ app.post('/api/picks', wrap(async (req, res) => {
   const trimmedName = name.trim();
   if (!trimmedName) return res.status(400).json({ error: 'Name cannot be empty' });
   const data = await readData();
+  if (!data.lockedParticipants) data.lockedParticipants = [];
+  if (data.lockedParticipants.includes(trimmedName)) {
+    return res.status(403).json({ error: 'Your ballot is locked. Ask the admin to unlock it.' });
+  }
   if (!data.participantNames.includes(trimmedName)) {
     if (data.participantNames.length >= 50) return res.status(400).json({ error: 'Max 50 participants reached' });
     data.participantNames.push(trimmedName);
   }
   data.picks[trimmedName] = { ...(data.picks[trimmedName] || {}), ...picks };
+  // Auto-lock when all categories with nominees are picked
+  const pickableIds = new Set(data.categories.filter(c => c.nominees.length > 0).map(c => c.id));
+  const pickedIds = Object.keys(data.picks[trimmedName]).filter(id => pickableIds.has(id));
+  let locked = false;
+  if (pickedIds.length >= pickableIds.size) {
+    data.lockedParticipants.push(trimmedName);
+    locked = true;
+  }
   await writeData(data);
-  res.json({ success: true });
+  res.json({ success: true, locked });
 }));
 
 app.get('/api/leaderboard', wrap(async (req, res) => {
@@ -223,8 +236,17 @@ app.post('/api/admin/participants', adminAuth, wrap(async (req, res) => {
 app.post('/api/admin/reset', adminAuth, wrap(async (req, res) => {
   const { scope } = req.body;
   const data = await readData();
-  if (scope === 'picks'   || scope === 'all') data.picks = {};
+  if (scope === 'picks'   || scope === 'all') { data.picks = {}; data.lockedParticipants = []; }
   if (scope === 'results' || scope === 'all') data.categories.forEach(c => (c.winner = null));
+  await writeData(data);
+  res.json({ success: true });
+}));
+
+app.post('/api/admin/unlock', adminAuth, wrap(async (req, res) => {
+  const { name } = req.body;
+  const data = await readData();
+  if (!data.lockedParticipants) data.lockedParticipants = [];
+  data.lockedParticipants = data.lockedParticipants.filter(n => n !== name);
   await writeData(data);
   res.json({ success: true });
 }));

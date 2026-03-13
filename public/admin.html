@@ -43,14 +43,14 @@
 
     <!-- ── Tab: Players ──────────────────────────────────────────────── -->
     <div class="tab-panel active" id="tab-players">
-      <p class="section-title" style="margin-top:8px">Party Participants (one per line)</p>
-      <textarea class="nom-edit-area" id="players-input" style="min-height:160px"></textarea>
+      <p class="section-title" style="margin-top:8px">Ballot Lock Status</p>
+      <div id="lock-list" style="margin-bottom:20px"></div>
+      <p class="section-title">Manage Participants</p>
+      <p style="font-size:13px;color:var(--text-dim);margin-bottom:8px">One name per line. Changes take effect immediately.</p>
+      <textarea class="nom-edit-area" id="players-input" style="min-height:120px"></textarea>
       <div style="display:flex;gap:10px;margin-top:10px">
         <button class="btn btn-gold" onclick="savePlayers()">Save Players</button>
       </div>
-      <p style="font-size:13px;color:var(--text-dim);margin-top:10px">
-        Set all 6 player names here before the party. Changes take effect immediately.
-      </p>
     </div>
 
     <!-- ── Tab: Nominees ─────────────────────────────────────────────── -->
@@ -148,6 +148,40 @@ function authHeaders() {
 /* ── Players tab ────────────────────────────────────────────────────────── */
 function renderPlayers() {
   document.getElementById('players-input').value = appData.participantNames.join('\n');
+  const locked = appData.lockedParticipants || [];
+  const list = document.getElementById('lock-list');
+  if (appData.participantNames.length === 0) {
+    list.innerHTML = `<p style="font-size:13px;color:var(--text-dim)">No participants yet.</p>`;
+    return;
+  }
+  list.innerHTML = appData.participantNames.map((name, idx) => {
+    const isLocked = locked.includes(name);
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:6px">
+      <span style="font-size:14px">${escHtml(name)}</span>
+      ${isLocked
+        ? `<div style="display:flex;align-items:center;gap:10px">
+             <span style="font-size:12px;color:var(--gold)">🔒 Locked</span>
+             <button class="btn btn-sm" style="background:rgba(255,255,255,0.08);color:var(--text)" onclick="unlockParticipant(${idx})">Unlock</button>
+           </div>`
+        : `<span style="font-size:12px;color:var(--text-dim)">Open</span>`}
+    </div>`;
+  }).join('');
+}
+
+async function unlockParticipant(idx) {
+  const name = appData.participantNames[idx];
+  const res = await fetch('/api/admin/unlock', {
+    method: 'POST',
+    headers: authHeaders(),
+    body: JSON.stringify({ name }),
+  });
+  if (res.ok) {
+    appData.lockedParticipants = (appData.lockedParticipants || []).filter(n => n !== name);
+    renderPlayers();
+    showToast(`${name} unlocked ✓`, 'success');
+  } else {
+    showToast('Error unlocking participant', 'error');
+  }
 }
 
 async function savePlayers() {

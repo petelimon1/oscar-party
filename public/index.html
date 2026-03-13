@@ -68,6 +68,7 @@
 let appData = null;
 let selectedName = localStorage.getItem('oscarPicksName') || null;
 let pendingPicks = {};   // { categoryId: nominee }
+let isLocked = false;
 
 /* ── Boot ───────────────────────────────────────────────────────────────── */
 async function init() {
@@ -114,6 +115,7 @@ function selectName(name) {
   selectedName = name;
   localStorage.setItem('oscarPicksName', name);
   pendingPicks = { ...(appData.picks[name] || {}) };
+  isLocked = (appData.lockedParticipants || []).includes(name);
   renderNames();
   renderCategories();
   updateSaveBar();
@@ -131,11 +133,27 @@ function renderCategories() {
   }
   warn.style.display = 'none';
 
+  // Lock banner
+  let lockBanner = document.getElementById('lock-banner');
+  if (!lockBanner) {
+    lockBanner = document.createElement('div');
+    lockBanner.id = 'lock-banner';
+    container.parentNode.insertBefore(lockBanner, container);
+  }
+  if (isLocked) {
+    lockBanner.innerHTML = `<div style="background:rgba(212,175,55,0.1);border:1px solid rgba(212,175,55,0.4);border-radius:10px;padding:14px 18px;margin-bottom:16px;text-align:center">
+      🔒 <strong style="color:var(--gold)">Ballot locked</strong> — your picks have been submitted.<br>
+      <span style="font-size:13px;color:var(--text-dim)">Need to make a change? Ask Pete to unlock your ballot.</span>
+    </div>`;
+  } else {
+    lockBanner.innerHTML = '';
+  }
+
   const myPicks = pendingPicks;
-  container.innerHTML = appData.categories.map(cat => renderCatCard(cat, myPicks)).join('');
+  container.innerHTML = appData.categories.map(cat => renderCatCard(cat, myPicks, isLocked)).join('');
 }
 
-function renderCatCard(cat, myPicks) {
+function renderCatCard(cat, myPicks, locked = false) {
   const myPick   = myPicks[cat.id];
   const hasPick  = Boolean(myPick);
   const announced = Boolean(cat.winner);
@@ -164,7 +182,7 @@ function renderCatCard(cat, myPicks) {
         else if (myPick === nom && nom !== cat.winner) itemClass += ' wrong';
         else if (myPick === nom && nom === cat.winner) itemClass += ' correct';
       }
-      const disabled = announced ? 'disabled' : '';
+      const disabled = (announced || locked) ? 'disabled' : '';
       return `
         <li class="${itemClass}">
           <input type="radio" name="cat_${cat.id}" id="nom_${cat.id}_${slugify(nom)}"
@@ -228,9 +246,17 @@ async function savePicks() {
       renderNames();
     }
     appData.picks[selectedName] = { ...pendingPicks };
-    btn.textContent = '✓ Saved!';
-    showToast('Picks saved! 🏆', 'success');
-    setTimeout(() => { btn.textContent = 'Save Picks'; }, 2000);
+    if (json.locked) {
+      isLocked = true;
+      if (!appData.lockedParticipants) appData.lockedParticipants = [];
+      appData.lockedParticipants.push(selectedName);
+      renderCategories();
+      showToast('Ballot locked — all 24 picks submitted! 🔒', 'success');
+    } else {
+      btn.textContent = '✓ Saved!';
+      showToast('Picks saved! 🏆', 'success');
+      setTimeout(() => { btn.textContent = 'Save Picks'; }, 2000);
+    }
   } catch (e) {
     btn.textContent = 'Save Picks';
     showToast('Save failed: ' + e.message, 'error');
@@ -249,6 +275,13 @@ function updateSaveBar() {
     btn.disabled = true;
     return;
   }
+  if (isLocked) {
+    info.textContent = `${selectedName} · Ballot locked 🔒`;
+    btn.disabled = true;
+    btn.textContent = 'Locked';
+    return;
+  }
+  btn.textContent = 'Save Picks';
   const pickable = appData.categories.filter(c => c.nominees.length > 0 && !c.winner);
   const total = pickable.length;
   const made  = Object.keys(pendingPicks).filter(id => {
