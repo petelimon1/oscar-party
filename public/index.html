@@ -222,6 +222,7 @@ async function savePicks() {
     showToast('Picks saved! 🏆', 'success');
     setTimeout(() => { btn.textContent = 'Save Picks'; }, 2000);
   } catch (e) {
+    btn.textContent = 'Save Picks';
     showToast('Save failed: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
