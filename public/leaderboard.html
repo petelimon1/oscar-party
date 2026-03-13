@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oscar Pool 2026 – Leaderboard</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Announce panel ──────────────────────────────────────────────────── */
+    #announce-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px;
+      background: rgba(212,175,55,0.08);
+      border: 1px dashed rgba(212,175,55,0.35);
+      border-radius: 10px;
+      color: var(--gold);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      margin: 18px 0 0;
+      transition: all 0.2s;
+    }
+    #announce-toggle:hover { background: rgba(212,175,55,0.14); border-style: solid; }
+
+    #announce-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin: 8px 0 0;
+      overflow: hidden;
+    }
+
+    .announce-header {
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .announce-header h2 { font-size: 16px; color: var(--gold); }
+
+    #pw-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    #pw-row input {
+      width: 150px;
+      padding: 7px 12px;
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    /* Category list in announce panel */
+    .announce-list { padding: 8px 12px 14px; }
+
+    .announce-cat {
+      margin: 6px 0;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      overflow: hidden;
+    }
+    .announce-cat.done { border-color: rgba(76,175,80,0.4); }
+
+    .announce-cat-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+      gap: 10px;
+    }
+    .announce-cat-header:hover { background: var(--surface-2); }
+
+    .announce-cat-name { font-size: 14px; font-weight: 600; color: var(--text); flex: 1; }
+    .announce-winner-label { font-size: 13px; color: #81c784; font-weight: 600; }
+    .announce-chevron { color: var(--text-dim); font-size: 12px; transition: transform 0.2s; }
+    .announce-cat.open .announce-chevron { transform: rotate(180deg); }
+
+    .announce-cat-body {
+      display: none;
+      padding: 0 10px 10px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .announce-cat.open .announce-cat-body { display: flex; }
+
+    .nom-pick-btn {
+      padding: 8px 14px;
+      background: var(--surface-2);
+      border: 1px solid transparent;
+      border-radius: 7px;
+      color: var(--text);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.14s;
+      margin-top: 6px;
+    }
+    .nom-pick-btn:hover { border-color: var(--gold); color: var(--gold); }
+    .nom-pick-btn.is-winner {
+      background: rgba(76,175,80,0.12);
+      border-color: var(--green);
+      color: #81c784;
+      font-weight: 600;
+    }
+    .clear-winner-btn {
+      padding: 6px 12px;
+      background: rgba(229,57,53,0.08);
+      border: 1px solid rgba(229,57,53,0.3);
+      border-radius: 7px;
+      color: #ef9a9a;
+      font-size: 12px;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: all 0.14s;
+    }
+    .clear-winner-btn:hover { background: rgba(229,57,53,0.18); }
+  </style>
+</head>
+<body>
+
+<header class="site-header">
+  <h1>🏆 Oscar Pool 2026</h1>
+  <p class="subtitle">98th Academy Awards · Live Leaderboard</p>
+  <nav>
+    <a href="/">My Picks</a>
+    <a href="/leaderboard.html" class="active">Leaderboard</a>
+  </nav>
+</header>
+
+<div class="container">
+
+  <!-- Progress bar -->
+  <div class="progress-row">
+    <span class="progress-label" id="progress-label">0 / 23 announced</span>
+    <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <span class="progress-pct" id="progress-pct">0%</span>
+  </div>
+
+  <!-- Empty state -->
+  <div id="empty-state" class="empty-state" style="display:none">
+    <span class="emoji">🎬</span>
+    <p>No picks submitted yet.<br>Ask everyone to visit <strong>My Picks</strong> and submit their selections.</p>
+  </div>
+
+  <!-- Rankings -->
+  <div id="rankings"></div>
+
+  <!-- Charts -->
+  <div class="chart-wrap" id="chart-prob" style="display:none">
+    <h2>Win Probability</h2>
+    <canvas id="probChart" height="80"></canvas>
+  </div>
+  <div class="chart-wrap" id="chart-score" style="display:none">
+    <h2>Correct Picks</h2>
+    <canvas id="scoreChart" height="80"></canvas>
+  </div>
+
+  <!-- Announced results grid -->
+  <div id="results-section" style="display:none">
+    <p class="section-title">Results So Far</p>
+    <div id="results-grid" class="results-grid"></div>
+  </div>
+
+  <!-- ── Announce Winner Panel ───────────────────────────────────────────── -->
+  <button id="announce-toggle" onclick="toggleAnnounce()">
+    🏆 Announce a Winner <span id="announce-chevron">▼</span>
+  </button>
+
+  <div id="announce-panel" style="display:none">
+    <div class="announce-header">
+      <h2>Mark Winner</h2>
+      <div id="pw-row">
+        <input type="password" id="ann-pw" placeholder="Password"
+               onkeydown="if(event.key==='Enter') unlockAnnounce()" style="width:130px">
+        <button class="btn btn-gold btn-sm" onclick="unlockAnnounce()">Unlock</button>
+      </div>
+      <div id="ann-auth-badge" style="display:none;color:#81c784;font-size:13px;font-weight:600">
+        ✓ Unlocked
+      </div>
+    </div>
+    <div class="announce-list" id="announce-list">
+      <p style="color:var(--text-dim);font-size:13px;padding:12px 4px">Enter the password above to unlock winner entry.</p>
+    </div>
+  </div>
+
+  <div style="height:32px"></div>
+
+</div>
+
+<!-- Live badge -->
+<div class="live-badge">
+  <span class="live-dot"></span>
+  Live · <span id="countdown">5</span>s
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── State ───────────────────────────────────────────────────────────────── */
+let probChart  = null;
+let scoreChart = null;
+let annUnlocked = false;
+let latestCategories = [];
+const MEDALS = ['🥇', '🥈', '🥉'];
+const COLORS  = [
+  'rgba(212,175,55,0.85)', 'rgba(138,109,211,0.85)', 'rgba(70,180,140,0.85)',
+  'rgba(220,100,80,0.85)', 'rgba(80,160,220,0.85)',  'rgba(200,140,80,0.85)',
+];
+
+/* ── Main refresh ────────────────────────────────────────────────────────── */
+async function refresh() {
+  try {
+    const res  = await fetch('/api/leaderboard');
+    const data = await res.json();
+    latestCategories = data.categories || [];
+    renderLeaderboard(data);
+    if (annUnlocked) renderAnnounceList();
+  } catch (e) { console.error('Refresh error:', e); }
+}
+
+/* ── Leaderboard render ──────────────────────────────────────────────────── */
+function renderLeaderboard(data) {
+  const { progress, rankings, announced } = data;
+
+  const pct = progress.total > 0 ? Math.round((progress.announced / progress.total) * 100) : 0;
+  document.getElementById('progress-label').textContent = `${progress.announced} / ${progress.total} announced`;
+  document.getElementById('progress-fill').style.width  = pct + '%';
+  document.getElementById('progress-pct').textContent   = pct + '%';
+
+  const empty = rankings.length === 0;
+  document.getElementById('empty-state').style.display  = empty ? 'block' : 'none';
+
+  if (!empty) {
+    document.getElementById('rankings').innerHTML = rankings.map(renderCard).join('');
+    document.getElementById('chart-prob').style.display  = 'block';
+    document.getElementById('chart-score').style.display = progress.announced > 0 ? 'block' : 'none';
+    renderProbChart(rankings);
+    if (progress.announced > 0) renderScoreChart(rankings);
+  }
+
+  document.getElementById('results-section').style.display = announced.length > 0 ? 'block' : 'none';
+  document.getElementById('results-grid').innerHTML = announced.map(a => `
+    <div class="result-item">
+      <div class="result-cat">${esc(a.name)}</div>
+      <div class="result-win">🏆 ${esc(a.winner)}</div>
+    </div>`).join('');
+}
+
+function renderCard(p, i) {
+  const rank    = i + 1;
+  const medal   = rank <= 3 ? MEDALS[i] : rank;
+  const pWidth  = Math.max(2, p.winProbability);
+  const pColor  = rank === 1 ? 'var(--gold)' : rank === 2 ? 'var(--silver)' : 'var(--text)';
+  return `
+    <div class="lb-card rank-${Math.min(rank,4)}" style="animation:fadeIn .4s ease ${i*.05}s both">
+      <div class="lb-top">
+        <div class="lb-rank">${medal}</div>
+        <div class="lb-name">${esc(p.name)}</div>
+        <div class="lb-score">
+          <div class="lb-score-num">${p.score}<span style="font-size:14px;color:var(--text-dim)">/${p.announced}</span></div>
+          <div class="lb-score-label">correct</div>
+        </div>
+        <div class="lb-prob">
+          <div class="lb-prob-num" style="color:${pColor}">${p.winProbability}%</div>
+          <div class="lb-prob-label">win chance</div>
+        </div>
+      </div>
+      <div class="lb-bar"><div class="lb-bar-fill" style="width:${pWidth}%"></div></div>
+      <div class="lb-meta">${p.pickCount} / ${p.total} categories picked</div>
+    </div>`;
+}
+
+/* ── Charts ──────────────────────────────────────────────────────────────── */
+const CHART_OPT = {
+  responsive: true, maintainAspectRatio: true,
+  plugins: { legend: { display: false } },
+  scales: {
+    x: { ticks: { color: '#7a7468' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+    y: { ticks: { color: '#7a7468' }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true },
+  },
+};
+
+function renderProbChart(rankings) {
+  const labels = rankings.map(p => p.name);
+  const values = rankings.map(p => p.winProbability);
+  const colors = rankings.map((_, i) => COLORS[i % COLORS.length]);
+  const ctx = document.getElementById('probChart').getContext('2d');
+  if (probChart) {
+    probChart.data.labels = labels;
+    probChart.data.datasets[0].data = values;
+    probChart.data.datasets[0].backgroundColor = colors;
+    probChart.update('active');
+  } else {
+    probChart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, borderSkipped: false }] },
+      options: { ...CHART_OPT, scales: { ...CHART_OPT.scales,
+        y: { ...CHART_OPT.scales.y, max: 100, ticks: { color: '#7a7468', callback: v => v + '%' } } } },
+    });
+  }
+}
+
+function renderScoreChart(rankings) {
+  const labels = rankings.map(p => p.name);
+  const values = rankings.map(p => p.score);
+  const colors = rankings.map((_, i) => COLORS[i % COLORS.length]);
+  const ctx = document.getElementById('scoreChart').getContext('2d');
+  if (scoreChart) {
+    scoreChart.data.labels = labels;
+    scoreChart.data.datasets[0].data = values;
+    scoreChart.data.datasets[0].backgroundColor = colors;
+    scoreChart.update('active');
+  } else {
+    scoreChart = new Chart(ctx, {
+      type: 'bar',
+      data: { labels, datasets: [{ data: values, backgroundColor: colors, borderRadius: 6, borderSkipped: false }] },
+      options: { ...CHART_OPT, scales: { ...CHART_OPT.scales,
+        y: { ...CHART_OPT.scales.y, ticks: { color: '#7a7468', stepSize: 1 } } } },
+    });
+  }
+}
+
+/* ── Announce panel ──────────────────────────────────────────────────────── */
+function toggleAnnounce() {
+  const panel = document.getElementById('announce-panel');
+  const chevron = document.getElementById('announce-chevron');
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  chevron.textContent = open ? '▲' : '▼';
+  if (open && !annUnlocked) document.getElementById('ann-pw').focus();
+}
+
+async function unlockAnnounce() {
+  const pw = document.getElementById('ann-pw').value;
+  const res = await fetch('/api/admin/verify', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password: pw }),
+  });
+  if (res.ok) {
+    annUnlocked = true;
+    sessionStorage.setItem('adminPw', pw);
+    document.getElementById('pw-row').style.display       = 'none';
+    document.getElementById('ann-auth-badge').style.display = 'block';
+    renderAnnounceList();
+  } else {
+    document.getElementById('ann-pw').value = '';
+    document.getElementById('ann-pw').style.borderColor = 'var(--red)';
+    setTimeout(() => document.getElementById('ann-pw').style.borderColor = '', 1500);
+  }
+}
+
+function renderAnnounceList() {
+  const list = document.getElementById('announce-list');
+  if (!latestCategories.length) {
+    list.innerHTML = `<p style="color:var(--text-dim);font-size:13px;padding:12px 4px">No categories with nominees yet. Add nominees in the Admin panel.</p>`;
+    return;
+  }
+
+  const withNoms = latestCategories.filter(c => c.nominees.length > 0);
+  if (!withNoms.length) {
+    list.innerHTML = `<p style="color:var(--text-dim);font-size:13px;padding:12px 4px">No nominees entered yet. Go to Admin → Nominees.</p>`;
+    return;
+  }
+
+  list.innerHTML = withNoms.map(cat => {
+    const isDone = Boolean(cat.winner);
+    const nomBtns = cat.nominees.map(nom => `
+      <button class="nom-pick-btn ${cat.winner === nom ? 'is-winner' : ''}"
+              onclick="setWinner('${cat.id}', '${esc(nom)}')">
+        ${cat.winner === nom ? '🏆 ' : ''}${esc(nom)}
+      </button>`).join('');
+    return `
+      <div class="announce-cat ${isDone ? 'done' : ''}" id="acat-${cat.id}">
+        <div class="announce-cat-header" onclick="toggleAnnounceCat('${cat.id}')">
+          <span class="announce-cat-name">${esc(cat.name)}</span>
+          ${isDone ? `<span class="announce-winner-label">✓ ${esc(cat.winner)}</span>` : ''}
+          <span class="announce-chevron">▼</span>
+        </div>
+        <div class="announce-cat-body" id="abody-${cat.id}">
+          ${nomBtns}
+          ${isDone ? `<button class="clear-winner-btn" onclick="clearWinner('${cat.id}')">✕ Clear</button>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleAnnounceCat(id) {
+  const cat = document.getElementById('acat-' + id);
+  if (cat) cat.classList.toggle('open');
+}
+
+async function setWinner(categoryId, nominee) {
+  const pw = sessionStorage.getItem('adminPw');
+  const cat = latestCategories.find(c => c.id === categoryId);
+  const newWinner = cat?.winner === nominee ? null : nominee;
+  const res = await fetch('/api/admin/result', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-admin-password': pw },
+    body: JSON.stringify({ categoryId, winner: newWinner }),
+  });
+  if (res.ok) {
+    showToast(newWinner ? `🏆 ${newWinner}` : 'Winner cleared', 'success');
+    await refresh();
+  } else {
+    showToast('Error — try refreshing', 'error');
+  }
+}
+
+async function clearWinner(categoryId) {
+  await setWinner(categoryId, null);
+}
+
+/* ── Auto-unlock from session ────────────────────────────────────────────── */
+(async () => {
+  const saved = sessionStorage.getItem('adminPw');
+  if (saved) {
+    const res = await fetch('/api/admin/verify', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: saved }),
+    });
+    if (res.ok) {
+      annUnlocked = true;
+      document.getElementById('pw-row').style.display        = 'none';
+      document.getElementById('ann-auth-badge').style.display = 'block';
+    }
+  }
+})();
+
+/* ── Countdown + auto-refresh ────────────────────────────────────────────── */
+let countdown = 5;
+function tick() {
+  countdown--;
+  document.getElementById('countdown').textContent = countdown;
+  if (countdown <= 0) { countdown = 5; refresh(); }
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+const styleEl = document.createElement('style');
+styleEl.textContent = '@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}';
+document.head.appendChild(styleEl);
+
+refresh();
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

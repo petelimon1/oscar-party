@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oscar Pool 2026 – Make Your Picks</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="site-header">
+  <h1>🏆 Oscar Pool 2026</h1>
+  <p class="subtitle">98th Academy Awards · March 2, 2025</p>
+  <nav>
+    <a href="/" class="active">My Picks</a>
+    <a href="/leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<div class="container">
+
+  <!-- Name selector -->
+  <div id="name-section" class="card" style="margin-top:20px">
+    <p class="section-title" style="margin-top:0">Who are you?</p>
+    <div id="name-grid" class="name-grid"></div>
+  </div>
+
+  <!-- Warning if no name selected -->
+  <div id="no-name-warning" style="display:none;text-align:center;padding:32px;color:var(--text-dim)">
+    Select your name above to start making picks.
+  </div>
+
+  <!-- Categories list -->
+  <div id="categories-container"></div>
+
+</div>
+
+<!-- Sticky save bar -->
+<div class="save-bar" id="save-bar">
+  <span class="save-info" id="save-info">Select your name to begin</span>
+  <button class="btn btn-gold" id="save-btn" onclick="savePicks()" disabled>Save Picks</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── State ──────────────────────────────────────────────────────────────── */
+let appData = null;
+let selectedName = localStorage.getItem('oscarPicksName') || null;
+let pendingPicks = {};   // { categoryId: nominee }
+
+/* ── Boot ───────────────────────────────────────────────────────────────── */
+async function init() {
+  const res = await fetch('/api/data');
+  appData = await res.json();
+  renderNames();
+  renderCategories();
+  updateSaveBar();
+}
+
+/* ── Names ──────────────────────────────────────────────────────────────── */
+function renderNames() {
+  const grid = document.getElementById('name-grid');
+  grid.innerHTML = appData.participantNames.map(name => `
+    <button class="name-btn ${name === selectedName ? 'selected' : ''}"
+            onclick="selectName('${escHtml(name)}')">${escHtml(name)}</button>
+  `).join('');
+}
+
+function selectName(name) {
+  selectedName = name;
+  localStorage.setItem('oscarPicksName', name);
+  // Load saved picks for this person
+  pendingPicks = { ...(appData.picks[name] || {}) };
+  renderNames();
+  renderCategories();
+  updateSaveBar();
+}
+
+/* ── Categories ─────────────────────────────────────────────────────────── */
+function renderCategories() {
+  const container = document.getElementById('categories-container');
+  const warn = document.getElementById('no-name-warning');
+
+  if (!selectedName) {
+    container.innerHTML = '';
+    warn.style.display = 'block';
+    return;
+  }
+  warn.style.display = 'none';
+
+  const myPicks = pendingPicks;
+  container.innerHTML = appData.categories.map(cat => renderCatCard(cat, myPicks)).join('');
+}
+
+function renderCatCard(cat, myPicks) {
+  const myPick   = myPicks[cat.id];
+  const hasPick  = Boolean(myPick);
+  const announced = Boolean(cat.winner);
+  const noNoms   = cat.nominees.length === 0;
+
+  let classes = 'cat-card';
+  if (announced) classes += ' announced';
+  else if (hasPick) classes += ' has-pick';
+  if (noNoms) classes += ' no-nominees';
+
+  let badge = '';
+  if (announced) badge = `<span class="badge badge-announced">✓ Announced</span>`;
+  else if (!hasPick) badge = `<span class="badge badge-no-pick">No pick yet</span>`;
+  else badge = `<span class="badge badge-picked">Picked ✓</span>`;
+
+  let body = '';
+  if (noNoms) {
+    body = `<div class="cat-body"><p style="color:var(--text-dim);font-size:13px;padding:8px 0">Nominees not yet entered – check back soon.</p></div>`;
+  } else {
+    const items = cat.nominees.map(nom => {
+      const checked = myPick === nom ? 'checked' : '';
+      let itemClass = 'nominee-item';
+      let tag = '';
+      if (announced) {
+        if (nom === cat.winner) { itemClass += ' is-winner'; tag = '<span class="winner-tag">Winner</span>'; }
+        else if (myPick === nom && nom !== cat.winner) itemClass += ' wrong';
+        else if (myPick === nom && nom === cat.winner) itemClass += ' correct';
+      }
+      const disabled = announced ? 'disabled' : '';
+      return `
+        <li class="${itemClass}">
+          <input type="radio" name="cat_${cat.id}" id="nom_${cat.id}_${slugify(nom)}"
+                 value="${escHtml(nom)}" ${checked} ${disabled}
+                 onchange="onPickChange('${cat.id}', '${escHtml(nom)}')">
+          <label for="nom_${cat.id}_${slugify(nom)}">${escHtml(nom)}</label>
+          ${tag}
+        </li>`;
+    }).join('');
+    body = `<div class="cat-body"><ul class="nominees-list">${items}</ul></div>`;
+  }
+
+  return `
+    <div class="${classes}" id="cat-${cat.id}">
+      <div class="cat-header">
+        <span class="cat-name">${escHtml(cat.name)}</span>
+        ${badge}
+      </div>
+      ${body}
+    </div>`;
+}
+
+function onPickChange(categoryId, nominee) {
+  if (!selectedName) return;
+  pendingPicks[categoryId] = nominee;
+  // Update badge on that card without full re-render
+  const card = document.getElementById('cat-' + categoryId);
+  if (card) {
+    card.classList.add('has-pick');
+    const badge = card.querySelector('.badge');
+    if (badge) { badge.className = 'badge badge-picked'; badge.textContent = 'Picked ✓'; }
+  }
+  updateSaveBar();
+}
+
+/* ── Save ───────────────────────────────────────────────────────────────── */
+async function savePicks() {
+  if (!selectedName) return;
+  const btn = document.getElementById('save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    const res = await fetch('/api/picks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: selectedName, picks: pendingPicks }),
+    });
+    const json = await res.json();
+    if (!res.ok) throw new Error(json.error || 'Save failed');
+    appData.picks[selectedName] = { ...pendingPicks };
+    showToast('Picks saved! 🏆', 'success');
+  } catch (e) {
+    showToast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    updateSaveBar();
+  }
+}
+
+/* ── Helpers ────────────────────────────────────────────────────────────── */
+function updateSaveBar() {
+  const info = document.getElementById('save-info');
+  const btn  = document.getElementById('save-btn');
+  if (!selectedName) {
+    info.textContent = 'Select your name to begin';
+    btn.disabled = true;
+    return;
+  }
+  const total = appData.categories.filter(c => c.nominees.length > 0 && !c.winner).length;
+  const made  = Object.keys(pendingPicks).filter(id => {
+    const cat = appData.categories.find(c => c.id === id);
+    return cat && !cat.winner;
+  }).length;
+  info.textContent = `${selectedName} · ${made}/${total} picks made`;
+  btn.disabled = false;
+}
+
+function showToast(msg, type = '') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function slugify(s) {
+  return String(s).replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+}
+
+init();
+</script>
+</body>
+</html>

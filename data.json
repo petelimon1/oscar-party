@@ -1,0 +1,36 @@
+{
+  "participantNames": [
+    "Player 1",
+    "Player 2",
+    "Player 3",
+    "Player 4",
+    "Player 5",
+    "Player 6"
+  ],
+  "categories": [
+    { "id": "best_picture",       "name": "Best Picture",                    "nominees": [], "winner": null },
+    { "id": "best_director",      "name": "Best Director",                   "nominees": [], "winner": null },
+    { "id": "best_actress",       "name": "Best Actress in a Leading Role",  "nominees": [], "winner": null },
+    { "id": "best_actor",         "name": "Best Actor in a Leading Role",    "nominees": [], "winner": null },
+    { "id": "best_supp_actress",  "name": "Best Supporting Actress",         "nominees": [], "winner": null },
+    { "id": "best_supp_actor",    "name": "Best Supporting Actor",           "nominees": [], "winner": null },
+    { "id": "best_animated",      "name": "Best Animated Feature Film",      "nominees": [], "winner": null },
+    { "id": "best_intl",          "name": "Best International Feature Film", "nominees": [], "winner": null },
+    { "id": "best_documentary",   "name": "Best Documentary Feature Film",   "nominees": [], "winner": null },
+    { "id": "best_doc_short",     "name": "Best Documentary Short Film",     "nominees": [], "winner": null },
+    { "id": "best_live_short",    "name": "Best Live Action Short Film",     "nominees": [], "winner": null },
+    { "id": "best_anim_short",    "name": "Best Animated Short Film",        "nominees": [], "winner": null },
+    { "id": "best_orig_screen",   "name": "Best Original Screenplay",        "nominees": [], "winner": null },
+    { "id": "best_adapt_screen",  "name": "Best Adapted Screenplay",         "nominees": [], "winner": null },
+    { "id": "best_cinematog",     "name": "Best Cinematography",             "nominees": [], "winner": null },
+    { "id": "best_editing",       "name": "Best Film Editing",               "nominees": [], "winner": null },
+    { "id": "best_score",         "name": "Best Original Score",             "nominees": [], "winner": null },
+    { "id": "best_song",          "name": "Best Original Song",              "nominees": [], "winner": null },
+    { "id": "best_prod_design",   "name": "Best Production Design",          "nominees": [], "winner": null },
+    { "id": "best_costume",       "name": "Best Costume Design",             "nominees": [], "winner": null },
+    { "id": "best_makeup",        "name": "Best Makeup and Hairstyling",     "nominees": [], "winner": null },
+    { "id": "best_sound",         "name": "Best Sound",                      "nominees": [], "winner": null },
+    { "id": "best_vfx",           "name": "Best Visual Effects",             "nominees": [], "winner": null }
+  ],
+  "picks": {}
+}
