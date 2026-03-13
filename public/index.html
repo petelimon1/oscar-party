@@ -214,6 +214,7 @@ async function savePicks() {
   } catch (e) {
     showToast(e.message, 'error');
   } finally {
+    btn.textContent = 'Save Picks';
     btn.disabled = false;
     updateSaveBar();
   }
