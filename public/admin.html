@@ -217,9 +217,9 @@ function renderResults() {
 
   container.innerHTML = appData.categories.map(cat => {
     if (cat.nominees.length === 0) return '';
-    const nomButtons = cat.nominees.map(nom => `
+    const nomButtons = cat.nominees.map((nom, idx) => `
       <button class="nom-btn ${cat.winner === nom ? 'is-winner' : ''}"
-              onclick="setWinner('${cat.id}', '${escHtml(nom)}')">
+              onclick="setWinnerByIdx('${cat.id}', ${idx})">
         ${cat.winner === nom ? '🏆 ' : ''}${escHtml(nom)}
       </button>`).join('');
     return `
@@ -236,6 +236,11 @@ function renderResults() {
         </div>
       </div>`;
   }).join('');
+}
+
+function setWinnerByIdx(categoryId, nomIdx) {
+  const cat = appData.categories.find(c => c.id === categoryId);
+  setWinner(categoryId, cat.nominees[nomIdx]);
 }
 
 async function setWinner(categoryId, nominee) {

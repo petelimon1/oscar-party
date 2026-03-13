@@ -374,9 +374,9 @@ function renderAnnounceList() {
 
   list.innerHTML = withNoms.map(cat => {
     const isDone = Boolean(cat.winner);
-    const nomBtns = cat.nominees.map(nom => `
+    const nomBtns = cat.nominees.map((nom, idx) => `
       <button class="nom-pick-btn ${cat.winner === nom ? 'is-winner' : ''}"
-              onclick="setWinner('${cat.id}', '${esc(nom)}')">
+              onclick="setWinnerByIdx('${cat.id}', ${idx})">
         ${cat.winner === nom ? '🏆 ' : ''}${esc(nom)}
       </button>`).join('');
     return `
@@ -397,6 +397,11 @@ function renderAnnounceList() {
 function toggleAnnounceCat(id) {
   const cat = document.getElementById('acat-' + id);
   if (cat) cat.classList.toggle('open');
+}
+
+function setWinnerByIdx(categoryId, nomIdx) {
+  const cat = latestCategories.find(c => c.id === categoryId);
+  setWinner(categoryId, cat.nominees[nomIdx]);
 }
 
 async function setWinner(categoryId, nominee) {
