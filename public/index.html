@@ -51,7 +51,7 @@
   <button class="btn btn-gold" id="save-btn" onclick="savePicks()" disabled>Save Picks</button>
 </div>
 
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast" style="top:auto;bottom:80px;"></div>
 
 <script>
 /* ── State ──────────────────────────────────────────────────────────────── */
@@ -210,11 +210,12 @@ async function savePicks() {
       renderNames();
     }
     appData.picks[selectedName] = { ...pendingPicks };
+    btn.textContent = '✓ Saved!';
     showToast('Picks saved! 🏆', 'success');
+    setTimeout(() => { btn.textContent = 'Save Picks'; }, 2000);
   } catch (e) {
-    showToast(e.message, 'error');
+    showToast('Save failed: ' + e.message, 'error');
   } finally {
-    btn.textContent = 'Save Picks';
     btn.disabled = false;
     updateSaveBar();
   }
@@ -229,12 +230,21 @@ function updateSaveBar() {
     btn.disabled = true;
     return;
   }
-  const total = appData.categories.filter(c => c.nominees.length > 0 && !c.winner).length;
+  const pickable = appData.categories.filter(c => c.nominees.length > 0 && !c.winner);
+  const total = pickable.length;
   const made  = Object.keys(pendingPicks).filter(id => {
     const cat = appData.categories.find(c => c.id === id);
     return cat && !cat.winner;
   }).length;
-  info.textContent = `${selectedName} · ${made}/${total} picks made`;
+  if (made < total) {
+    const firstMissing = pickable.find(c => !pendingPicks[c.id]);
+    const linkHtml = firstMissing
+      ? ` <a href="#cat-${firstMissing.id}" style="color:var(--gold);text-decoration:underline;font-size:12px">find it ↑</a>`
+      : '';
+    info.innerHTML = `${escHtml(selectedName)} · ${made}/${total} picks made${linkHtml}`;
+  } else {
+    info.textContent = `${selectedName} · ${made}/${total} picks made ✓`;
+  }
   btn.disabled = false;
 }
 
