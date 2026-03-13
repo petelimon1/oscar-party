@@ -171,7 +171,10 @@ function renderCatCard(cat, myPicks) {
     <div class="${classes}" id="cat-${cat.id}">
       <div class="cat-header">
         <span class="cat-name">${escHtml(cat.name)}</span>
-        ${badge}
+        <div class="cat-header-right">
+          ${cat.points > 1 ? `<span class="pts-badge pts-${cat.points}">${cat.points} pts</span>` : ''}
+          ${badge}
+        </div>
       </div>
       ${body}
     </div>`;

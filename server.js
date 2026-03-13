@@ -134,10 +134,14 @@ app.get('/api/leaderboard', wrap(async (req, res) => {
   const announced  = categories.filter(c => c.winner);
   const unresolved = categories.filter(c => !c.winner && c.nominees.length > 0);
 
+  // Weighted scoring: use category points (default 1)
+  const pts = cat => cat.points || 1;
+  const maxPossible = categories.filter(c => c.nominees.length > 0).reduce((s, c) => s + pts(c), 0);
+
   const scores = {};
   participants.forEach(p => (scores[p] = 0));
   announced.forEach(cat => {
-    participants.forEach(p => { if (picks[p]?.[cat.id] === cat.winner) scores[p]++; });
+    participants.forEach(p => { if (picks[p]?.[cat.id] === cat.winner) scores[p] += pts(cat); });
   });
 
   const NUM_SIMS = 10000;
@@ -153,7 +157,7 @@ app.get('/api/leaderboard', wrap(async (req, res) => {
         const simScores = { ...scores };
         unresolved.forEach(cat => {
           const w = cat.nominees[Math.floor(Math.random() * cat.nominees.length)];
-          participants.forEach(p => { if (picks[p]?.[cat.id] === w) simScores[p]++; });
+          participants.forEach(p => { if (picks[p]?.[cat.id] === w) simScores[p] += pts(cat); });
         });
         const maxScore = Math.max(...participants.map(p => simScores[p]));
         participants.filter(p => simScores[p] === maxScore).forEach(w => (winCount[w] += 1 / participants.filter(p => simScores[p] === maxScore).length));
@@ -165,6 +169,7 @@ app.get('/api/leaderboard', wrap(async (req, res) => {
     .map(p => ({
       name: p,
       score: scores[p],
+      maxPossible,
       announced: announced.length,
       total: categories.length,
       pickCount: Object.keys(picks[p] || {}).length,
@@ -176,7 +181,7 @@ app.get('/api/leaderboard', wrap(async (req, res) => {
     progress: { announced: announced.length, total: categories.length },
     rankings,
     announced: announced.map(c => ({ id: c.id, name: c.name, winner: c.winner })),
-    categories: categories.map(c => ({ id: c.id, name: c.name, nominees: c.nominees, winner: c.winner })),
+    categories: categories.map(c => ({ id: c.id, name: c.name, points: pts(c), nominees: c.nominees, winner: c.winner })),
   });
 }));
 
@@ -234,6 +239,7 @@ app.post('/api/admin/load-nominees', adminAuth, wrap(async (req, res) => {
     if (existing) {
       existing.nominees = defCat.nominees;
       existing.name = defCat.name;
+      existing.points = defCat.points || 1;
     } else {
       data.categories.push(defCat);
     }

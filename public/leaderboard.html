@@ -160,7 +160,7 @@
     <canvas id="probChart" height="80"></canvas>
   </div>
   <div class="chart-wrap" id="chart-score" style="display:none">
-    <h2>Correct Picks</h2>
+    <h2>Points Scored</h2>
     <canvas id="scoreChart" height="80"></canvas>
   </div>
 
@@ -266,8 +266,8 @@ function renderCard(p, i) {
         <div class="lb-rank">${medal}</div>
         <div class="lb-name">${esc(p.name)}</div>
         <div class="lb-score">
-          <div class="lb-score-num">${p.score}<span style="font-size:14px;color:var(--text-dim)">/${p.announced}</span></div>
-          <div class="lb-score-label">correct</div>
+          <div class="lb-score-num">${p.score}<span style="font-size:14px;color:var(--text-dim)">pts</span></div>
+          <div class="lb-score-label">${p.announced} announced</div>
         </div>
         <div class="lb-prob">
           <div class="lb-prob-num" style="color:${pColor}">${p.winProbability}%</div>
@@ -382,7 +382,7 @@ function renderAnnounceList() {
     return `
       <div class="announce-cat ${isDone ? 'done' : ''}" id="acat-${cat.id}">
         <div class="announce-cat-header" onclick="toggleAnnounceCat('${cat.id}')">
-          <span class="announce-cat-name">${esc(cat.name)}</span>
+          <span class="announce-cat-name">${esc(cat.name)}${cat.points > 1 ? ` <span style="font-size:10px;font-weight:700;color:${cat.points===3?'var(--gold)':'#c0c0c0'};background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:6px">${cat.points}pts</span>` : ''}</span>
           ${isDone ? `<span class="announce-winner-label">✓ ${esc(cat.winner)}</span>` : ''}
           <span class="announce-chevron">▼</span>
         </div>
