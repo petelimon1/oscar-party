@@ -298,13 +298,47 @@ async function setWinner(categoryId, winners) {
   if (res.ok) {
     const cat = appData.categories.find(c => c.id === categoryId);
     cat.winner = winners;
-    renderResults();
+    // Update only this category in-place so the accordion stays open
+    updateResultCat(cat);
     const label = winners == null ? null
       : Array.isArray(winners) ? winners.join(' & ')
       : winners;
     showToast(label ? `Winner set: ${label} 🏆` : 'Winner cleared', 'success');
   } else {
     showToast('Error setting winner', 'error');
+  }
+}
+
+function updateResultCat(cat) {
+  const curWinners = winnersOf(cat);
+  // Update each nominee button
+  cat.nominees.forEach((nom, idx) => {
+    const btn = document.querySelector(`#res-${cat.id} .nom-btn:nth-child(${idx + 1})`);
+    if (!btn) return;
+    const isW = curWinners.includes(nom);
+    btn.className = 'nom-btn' + (isW ? ' is-winner' : '');
+    btn.textContent = (isW ? '🏆 ' : '') + nom;
+  });
+  // Update status label
+  const statusEl = document.getElementById('res-status-' + cat.id);
+  if (statusEl) {
+    statusEl.textContent = curWinners.length === 0 ? 'Not announced'
+      : curWinners.length === 1 ? '✓ ' + curWinners[0]
+      : `✓ ${curWinners.length} winners`;
+  }
+  // Show/hide the Clear button (it's the last child of the body div)
+  const body = document.getElementById('res-' + cat.id);
+  if (!body) return;
+  let clearBtn = body.querySelector('.btn-danger');
+  if (curWinners.length > 0 && !clearBtn) {
+    clearBtn = document.createElement('button');
+    clearBtn.className = 'btn btn-danger btn-sm';
+    clearBtn.style.marginTop = '8px';
+    clearBtn.onclick = () => clearWinner(cat.id);
+    clearBtn.textContent = 'Clear Winner';
+    body.appendChild(clearBtn);
+  } else if (curWinners.length === 0 && clearBtn) {
+    clearBtn.remove();
   }
 }
 
