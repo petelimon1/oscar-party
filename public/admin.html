@@ -110,6 +110,11 @@
 let adminPassword = null;
 let appData = null;
 
+function winnersOf(cat) {
+  if (!cat.winner) return [];
+  return Array.isArray(cat.winner) ? cat.winner : [cat.winner];
+}
+
 /* ── Auth ───────────────────────────────────────────────────────────────── */
 async function login() {
   const pw = document.getElementById('pw-input').value;
@@ -251,22 +256,24 @@ function renderResults() {
 
   container.innerHTML = appData.categories.map(cat => {
     if (cat.nominees.length === 0) return '';
+    const curWinners = winnersOf(cat);
     const nomButtons = cat.nominees.map((nom, idx) => `
-      <button class="nom-btn ${cat.winner === nom ? 'is-winner' : ''}"
+      <button class="nom-btn ${curWinners.includes(nom) ? 'is-winner' : ''}"
               onclick="setWinnerByIdx('${cat.id}', ${idx})">
-        ${cat.winner === nom ? '🏆 ' : ''}${escHtml(nom)}
+        ${curWinners.includes(nom) ? '🏆 ' : ''}${escHtml(nom)}
       </button>`).join('');
+    const statusText = curWinners.length === 0 ? 'Not announced'
+      : curWinners.length === 1 ? '✓ ' + curWinners[0]
+      : `✓ ${curWinners.length} winners`;
     return `
       <div class="admin-cat" id="res-cat-${cat.id}">
         <div class="admin-cat-header" onclick="toggleCat('res-${cat.id}')">
           <span class="admin-cat-name">${escHtml(cat.name)}</span>
-          <span class="admin-cat-status" id="res-status-${cat.id}">
-            ${cat.winner ? '✓ ' + cat.winner : 'Not announced'}
-          </span>
+          <span class="admin-cat-status" id="res-status-${cat.id}">${escHtml(statusText)}</span>
         </div>
         <div class="admin-cat-body" id="res-${cat.id}">
           ${nomButtons}
-          ${cat.winner ? `<button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="clearWinner('${cat.id}')">Clear Winner</button>` : ''}
+          ${curWinners.length > 0 ? `<button class="btn btn-danger btn-sm" style="margin-top:8px" onclick="clearWinner('${cat.id}')">Clear Winner</button>` : ''}
         </div>
       </div>`;
   }).join('');
@@ -274,23 +281,28 @@ function renderResults() {
 
 function setWinnerByIdx(categoryId, nomIdx) {
   const cat = appData.categories.find(c => c.id === categoryId);
-  setWinner(categoryId, cat.nominees[nomIdx]);
+  const nom = cat.nominees[nomIdx];
+  const current = winnersOf(cat);
+  const newWinners = current.includes(nom)
+    ? current.filter(w => w !== nom)
+    : [...current, nom];
+  setWinner(categoryId, newWinners.length === 0 ? null : newWinners);
 }
 
-async function setWinner(categoryId, nominee) {
-  // Toggle: clicking the current winner clears it
-  const cat = appData.categories.find(c => c.id === categoryId);
-  const newWinner = cat.winner === nominee ? null : nominee;
-
+async function setWinner(categoryId, winners) {
   const res = await fetch('/api/admin/result', {
     method: 'POST',
     headers: authHeaders(),
-    body: JSON.stringify({ categoryId, winner: newWinner }),
+    body: JSON.stringify({ categoryId, winner: winners }),
   });
   if (res.ok) {
-    cat.winner = newWinner;
+    const cat = appData.categories.find(c => c.id === categoryId);
+    cat.winner = winners;
     renderResults();
-    showToast(newWinner ? `Winner set: ${newWinner} 🏆` : 'Winner cleared', 'success');
+    const label = winners == null ? null
+      : Array.isArray(winners) ? winners.join(' & ')
+      : winners;
+    showToast(label ? `Winner set: ${label} 🏆` : 'Winner cleared', 'success');
   } else {
     showToast('Error setting winner', 'error');
   }

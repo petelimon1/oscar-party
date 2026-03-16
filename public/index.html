@@ -156,7 +156,7 @@ function renderCategories() {
 function renderCatCard(cat, myPicks, locked = false) {
   const myPick   = myPicks[cat.id];
   const hasPick  = Boolean(myPick);
-  const announced = Boolean(cat.winner);
+  const announced = winnersOf(cat).length > 0;
   const noNoms   = cat.nominees.length === 0;
 
   let classes = 'cat-card';
@@ -178,9 +178,10 @@ function renderCatCard(cat, myPicks, locked = false) {
       let itemClass = 'nominee-item';
       let tag = '';
       if (announced) {
-        if (nom === cat.winner) { itemClass += ' is-winner'; tag = '<span class="winner-tag">Winner</span>'; }
-        else if (myPick === nom && nom !== cat.winner) itemClass += ' wrong';
-        else if (myPick === nom && nom === cat.winner) itemClass += ' correct';
+        const catWinners = winnersOf(cat);
+        const nomIsWinner = catWinners.includes(nom);
+        if (nomIsWinner) { itemClass += ' is-winner'; tag = '<span class="winner-tag">Winner</span>'; }
+        if (myPick === nom && !nomIsWinner) itemClass += ' wrong';
       }
       const disabled = (announced || locked) ? 'disabled' : '';
       return `
@@ -313,6 +314,11 @@ function escHtml(s) {
 
 function slugify(s) {
   return String(s).replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
+}
+
+function winnersOf(cat) {
+  if (!cat.winner) return [];
+  return Array.isArray(cat.winner) ? cat.winner : [cat.winner];
 }
 
 init();

@@ -248,11 +248,13 @@ function renderLeaderboard(data) {
   }
 
   document.getElementById('results-section').style.display = announced.length > 0 ? 'block' : 'none';
-  document.getElementById('results-grid').innerHTML = announced.map(a => `
-    <div class="result-item">
+  document.getElementById('results-grid').innerHTML = announced.map(a => {
+    const winners = Array.isArray(a.winner) ? a.winner : [a.winner];
+    return `<div class="result-item">
       <div class="result-cat">${esc(a.name)}</div>
-      <div class="result-win">🏆 ${esc(a.winner)}</div>
-    </div>`).join('');
+      <div class="result-win">🏆 ${winners.map(esc).join(' &amp; ')}</div>
+    </div>`;
+  }).join('');
 }
 
 function renderCard(p, i) {
@@ -373,17 +375,21 @@ function renderAnnounceList() {
   }
 
   list.innerHTML = withNoms.map(cat => {
-    const isDone = Boolean(cat.winner);
+    const catWinners = winnersOf(cat);
+    const isDone = catWinners.length > 0;
     const nomBtns = cat.nominees.map((nom, idx) => `
-      <button class="nom-pick-btn ${cat.winner === nom ? 'is-winner' : ''}"
+      <button class="nom-pick-btn ${catWinners.includes(nom) ? 'is-winner' : ''}"
               onclick="setWinnerByIdx('${cat.id}', ${idx})">
-        ${cat.winner === nom ? '🏆 ' : ''}${esc(nom)}
+        ${catWinners.includes(nom) ? '🏆 ' : ''}${esc(nom)}
       </button>`).join('');
+    const winnerLabel = catWinners.length === 0 ? ''
+      : catWinners.length === 1 ? `<span class="announce-winner-label">✓ ${esc(catWinners[0])}</span>`
+      : `<span class="announce-winner-label">✓ ${catWinners.length} winners</span>`;
     return `
       <div class="announce-cat ${isDone ? 'done' : ''}" id="acat-${cat.id}">
         <div class="announce-cat-header" onclick="toggleAnnounceCat('${cat.id}')">
           <span class="announce-cat-name">${esc(cat.name)}${cat.points > 1 ? ` <span style="font-size:10px;font-weight:700;color:${cat.points===3?'var(--gold)':'#c0c0c0'};background:rgba(255,255,255,0.08);padding:1px 5px;border-radius:6px">${cat.points}pts</span>` : ''}</span>
-          ${isDone ? `<span class="announce-winner-label">✓ ${esc(cat.winner)}</span>` : ''}
+          ${winnerLabel}
           <span class="announce-chevron">▼</span>
         </div>
         <div class="announce-cat-body" id="abody-${cat.id}">
@@ -401,20 +407,26 @@ function toggleAnnounceCat(id) {
 
 function setWinnerByIdx(categoryId, nomIdx) {
   const cat = latestCategories.find(c => c.id === categoryId);
-  setWinner(categoryId, cat.nominees[nomIdx]);
+  const nom = cat.nominees[nomIdx];
+  const current = winnersOf(cat);
+  const newWinners = current.includes(nom)
+    ? current.filter(w => w !== nom)
+    : [...current, nom];
+  setWinner(categoryId, newWinners.length === 0 ? null : newWinners);
 }
 
-async function setWinner(categoryId, nominee) {
+async function setWinner(categoryId, winners) {
   const pw = sessionStorage.getItem('adminPw');
-  const cat = latestCategories.find(c => c.id === categoryId);
-  const newWinner = cat?.winner === nominee ? null : nominee;
   const res = await fetch('/api/admin/result', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-admin-password': pw },
-    body: JSON.stringify({ categoryId, winner: newWinner }),
+    body: JSON.stringify({ categoryId, winner: winners }),
   });
   if (res.ok) {
-    showToast(newWinner ? `🏆 ${newWinner}` : 'Winner cleared', 'success');
+    const label = winners == null ? null
+      : Array.isArray(winners) ? winners.join(' & ')
+      : winners;
+    showToast(label ? `🏆 ${label}` : 'Winner cleared', 'success');
     await refresh();
   } else {
     showToast('Error — try refreshing', 'error');
@@ -451,6 +463,11 @@ function tick() {
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function winnersOf(cat) {
+  if (!cat.winner) return [];
+  return Array.isArray(cat.winner) ? cat.winner : [cat.winner];
 }
 
 const styleEl = document.createElement('style');

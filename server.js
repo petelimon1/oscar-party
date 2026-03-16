@@ -107,6 +107,11 @@ function wrap(fn) {
   };
 }
 
+function winnersOf(cat) {
+  if (!cat.winner) return [];
+  return Array.isArray(cat.winner) ? cat.winner : [cat.winner];
+}
+
 // ── Public API ───────────────────────────────────────────────────────────────
 
 app.get('/api/data', wrap(async (req, res) => {
@@ -154,7 +159,8 @@ app.get('/api/leaderboard', wrap(async (req, res) => {
   const scores = {};
   participants.forEach(p => (scores[p] = 0));
   announced.forEach(cat => {
-    participants.forEach(p => { if (picks[p]?.[cat.id] === cat.winner) scores[p] += pts(cat); });
+    const wSet = new Set(winnersOf(cat));
+    participants.forEach(p => { if (wSet.has(picks[p]?.[cat.id])) scores[p] += pts(cat); });
   });
 
   const NUM_SIMS = 10000;
@@ -220,7 +226,7 @@ app.post('/api/admin/result', adminAuth, wrap(async (req, res) => {
   const data = await readData();
   const cat = data.categories.find(c => c.id === categoryId);
   if (!cat) return res.status(404).json({ error: 'Category not found' });
-  cat.winner = winner || null;
+  cat.winner = (Array.isArray(winner) && winner.length === 0) ? null : (winner || null);
   await writeData(data);
   res.json({ success: true });
 }));
